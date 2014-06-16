@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="Air Native Extension Build Scripts" default="all">
+
+    <!-- Config -->
+    <property file="build.config"/>
+
+    <!-- All -->
+    <target name="all" depends="windows,swc,package" description="Full build of extension"/>
+	
+	<!-- Windows -->
+	<target name="windows" description="Build Android Library">
+		<delete dir="../temp/"/>
+		<mkdir dir="../temp/windows/"/>
+		<exec executable="${msbuild}">
+			<arg line="../windows/${name}/${name}.sln"/>
+			<arg line="/p:Configuration=Debug"/>
+		</exec>
+		<copy file="../windows/${name}/Debug/${name}.dll" todir="../temp/windows" overwrite="true"/>
+		<delete dir="../windows/${name}/Debug/"/>
+	</target>
+
+    <!-- Actionscript -->
+    <target name="swc" description="Build SWC library">
+        <mkdir dir="../temp/swc/content/"/>
+
+        <fileset dir="../actionscript/src" casesensitive="yes" id="classfiles">
+            <include name="**/*.as"/>
+        </fileset>
+
+        <pathconvert property="classlist" refid="classfiles" pathsep=" " dirsep=".">
+            <regexpmapper from=".*src.(.*)\.as" to="\1"/>
+        </pathconvert>
+
+        <exec executable="${air.compc}" failonerror="true">
+            <arg line='-source-path ../actionscript/src'/>
+            <arg line='-output ../temp/swc/${name}.swc'/>
+            <arg line='-swf-version=${air.swf-version}'/>
+            <arg line='-target-player=${air.target-player}'/>
+            <arg line='-external-library-path+="${air.swc}"'/>
+            <arg line='-include-classes ${classlist}'/>
+        </exec>
+
+        <unzip src="../temp/swc/${name}.swc" dest="../temp/swc/content" overwrite="true"/>
+        <copy file="../temp/swc/content/library.swf" todir="../temp/windows" overwrite="true"/>
+        <copy file="../temp/swc/content/library.swf" todir="../temp/default" overwrite="true"/>
+        <delete dir="../temp/swc/content/"/>
+    </target>
+
+    <!-- Package -->
+    <target name="package" description="Create the extension package">
+        <exec executable="${air.adt}" failonerror="true" dir="../temp">
+            <arg value="-package"/>
+            <arg value="-target"/>
+            <arg value="ane"/>
+            <arg value="${name}.ane"/>
+            <arg value="../build/extension.xml"/>
+            <arg line="-swc swc/${name}.swc"/>
+            <arg line="-platform Windows-x86 -C windows/ ."/>
+            <arg line="-platform default -C default/ ."/>
+        </exec>
+        <copy file="../temp/${name}.ane" todir="../release" overwrite="true"/>
+		<copy file="../temp/${name}.ane" todir="${example.libs}" overwrite="true"/>
+        <delete dir="../temp"/>
+    </target>
+
+</project>
